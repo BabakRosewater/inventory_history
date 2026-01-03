@@ -18,18 +18,19 @@ jobs:
       - name: Pull Inventory (Raw Feed)
         run: |
           set -euo pipefail
-          # This script handles download, hash check, and snapshots
+          # Step 1: Download, hash-check, and snapshot the raw feed
           python3 scripts/pull_inventory.py
 
       - name: Build App-Ready Dataset
         run: |
           set -euo pipefail
-          # This script handles age tracking, price cleaning, and deltas
+          # Step 2: Transform raw CSV into the app-friendly version with age tracking
           python3 scripts/build_app_ready.py
 
       - name: Commit & push (if changes)
         run: |
           set -euo pipefail
+          # Check if any data, state, or manifest files were updated
           if [ -n "$(git status --porcelain)" ]; then
             git config user.name "inventory-bot"
             git config user.email "inventory-bot@users.noreply.github.com"
@@ -37,5 +38,5 @@ jobs:
             git commit -m "Inventory update: $(date -u +'%Y-%m-%d %H:%M') UTC"
             git push
           else
-            echo "No changes detected (scripts exited early or data is identical)."
+            echo "No changes detected. Feed is identical and state is stable."
           fi
