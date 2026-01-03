@@ -1,7 +1,8 @@
 name: Mirror dtfeed inventory (MP16607)
+
 on:
   schedule:
-    - cron: "0 */6 * * *"   # every 6 hours (at minute 0)
+    - cron: "0 */6 * * *"   # every 6 hours (UTC)
   workflow_dispatch:
 
 permissions:
@@ -15,26 +16,19 @@ jobs:
 
       - name: Download feed (HTTP)
         run: |
-          set -e
+          set -euo pipefail
           mkdir -p data/latest
           curl -L --fail "http://dtfeed.camclarkautogroup.com/ftp/MP16607.csv" -o data/latest/MP16607.csv
 
       - name: Build app-ready + age tracking
-        env:
-          INP: data/latest/MP16607.csv
-          OUT: data/latest/app_ready.csv
-          STATE: data/state/first_seen.json
-          META: data/latest/meta.json
-          DELTA: data/latest/delta.json
         run: |
-          set -e
-          python scripts/build_app_ready.py
+          set -euo pipefail
+          python3 scripts/build_app_ready.py
 
-
-      - name: Snapshot + update index (only if changed)
+      - name: Snapshot + update index (only if feed changed)
         run: |
-          set -e
-          python - <<'PY'
+          set -euo pipefail
+          python3 - <<'PY'
           import os, json, gzip, shutil, hashlib
           from datetime import datetime, timezone
 
@@ -56,54 +50,55 @@ jobs:
               index = json.load(f)
 
           last_hash = index["snapshots"][0]["sha256"] if index["snapshots"] else None
+
           if new_hash == last_hash:
-            print("No change in feed; skipping snapshot.")
-            raise SystemExit(0)
+            print("No change in feed; skipping snapshot (but continuing).")
+          else:
+            ts = datetime.now(timezone.utc)
+            yyyy, mm, dd = ts.strftime("%Y"), ts.strftime("%m"), ts.strftime("%d")
+            stamp = ts.strftime("%Y%m%d_%H%M")
+            folder = f"data/snapshots/{yyyy}/{mm}/{dd}"
+            os.makedirs(folder, exist_ok=True)
 
-          ts = datetime.now(timezone.utc)
-          yyyy, mm, dd = ts.strftime("%Y"), ts.strftime("%m"), ts.strftime("%d")
-          stamp = ts.strftime("%Y%m%d_%H%M")
-          folder = f"data/snapshots/{yyyy}/{mm}/{dd}"
-          os.makedirs(folder, exist_ok=True)
+            snap_csv = f"{folder}/MP16607_{stamp}.csv"
+            shutil.copy2(latest_path, snap_csv)
 
-          snap_csv = f"{folder}/MP16607_{stamp}.csv"
-          shutil.copy2(latest_path, snap_csv)
+            gz_path = snap_csv + ".gz"
+            with open(snap_csv, "rb") as f_in, gzip.open(gz_path, "wb", compresslevel=6) as f_out:
+              shutil.copyfileobj(f_in, f_out)
+            os.remove(snap_csv)
 
-          gz_path = snap_csv + ".gz"
-          with open(snap_csv, "rb") as f_in, gzip.open(gz_path, "wb", compresslevel=6) as f_out:
-            shutil.copyfileobj(f_in, f_out)
-          os.remove(snap_csv)
+            # count rows (minus header)
+            with gzip.open(gz_path, "rt", encoding="utf-8", errors="ignore") as f:
+              rows = sum(1 for _ in f) - 1
 
-          with gzip.open(gz_path, "rt", encoding="utf-8", errors="ignore") as f:
-            rows = sum(1 for _ in f) - 1
+            rel_path = gz_path.replace("\\","/")
+            entry = {
+              "ts_utc": ts.isoformat(),
+              "file": rel_path,
+              "rows": max(rows, 0),
+              "sha256": new_hash
+            }
 
-          rel_path = gz_path.replace("\\","/")
-          entry = {
-            "ts_utc": ts.isoformat(),
-            "file": rel_path,
-            "rows": max(rows, 0),
-            "sha256": new_hash
-          }
+            index["snapshots"].insert(0, entry)
+            index["snapshots"] = index["snapshots"][:2000]
 
-          index["snapshots"].insert(0, entry)
-          index["snapshots"] = index["snapshots"][:2000]
+            os.makedirs("data", exist_ok=True)
+            with open(index_path, "w", encoding="utf-8") as f:
+              json.dump(index, f, indent=2)
 
-          os.makedirs("data", exist_ok=True)
-          with open(index_path, "w", encoding="utf-8") as f:
-            json.dump(index, f, indent=2)
-
-          print("Snapshot saved:", rel_path)
+            print("Snapshot saved:", rel_path)
           PY
 
       - name: Commit & push (if changes)
         run: |
-          set -e
+          set -euo pipefail
           if git diff --quiet; then
             echo "No git changes."
             exit 0
           fi
           git config user.name "inventory-bot"
           git config user.email "inventory-bot@users.noreply.github.com"
-          git add data/latest data/state data/snapshots data/manifest.csv
-          git commit -m "Inventory snapshot update"
+          git add data/latest data/state data/snapshots data/index.json
+          git commit -m "Inventory update (app_ready + snapshot)"
           git push
