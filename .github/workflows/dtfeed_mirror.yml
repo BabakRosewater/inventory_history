@@ -20,9 +20,16 @@ jobs:
           curl -L --fail "http://dtfeed.camclarkautogroup.com/ftp/MP16607.csv" -o data/latest/MP16607.csv
 
       - name: Build app-ready + age tracking
+        env:
+          INP: data/latest/MP16607.csv
+          OUT: data/latest/app_ready.csv
+          STATE: data/state/first_seen.json
+          META: data/latest/meta.json
+          DELTA: data/latest/delta.json
         run: |
           set -e
           python scripts/build_app_ready.py
+
 
       - name: Snapshot + update index (only if changed)
         run: |
