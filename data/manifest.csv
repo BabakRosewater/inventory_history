@@ -1,0 +1,2 @@
+timestamp_utc,url_used,sha256,bytes,csv_rows_including_header,latest_path,snapshot_path
+2026-01-03T20:00:21Z,http://dtfeed.camclarkautogroup.com/ftp/MP16607.csv,c373a7ad70c85ab94fc8a4793a54ca99fb9b511bde65f1960c8d05636cd0dcd9,839461,113,data/latest/MP16607.csv,data/snapshots/2026-01-03/MP16607_20260103_200021Z.csv.gz
