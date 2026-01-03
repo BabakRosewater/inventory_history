@@ -2,8 +2,8 @@ name: Mirror dtfeed inventory (MP16607)
 
 on:
   schedule:
-    - cron: "0 */6 * * *"   # Runs every 6 hours (UTC)
-  workflow_dispatch:        # Allows manual triggering
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,105 +15,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download feed (HTTP)
+      - name: Pull Inventory (Raw Feed)
         run: |
           set -euo pipefail
-          mkdir -p data/latest
-          curl -L --fail "http://dtfeed.camclarkautogroup.com/ftp/MP16607.csv" -o data/latest/MP16607.csv
+          # This script handles download, hash check, and snapshots
+          python3 scripts/pull_inventory.py
 
-      - name: Build app-ready + age tracking
+      - name: Build App-Ready Dataset
         run: |
           set -euo pipefail
-          # Ensure directories exist before running the python script
-          mkdir -p data/latest data/state
+          # This script handles age tracking, price cleaning, and deltas
           python3 scripts/build_app_ready.py
-
-      - name: Snapshot + update index (only if feed changed)
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import os, json, gzip, shutil, hashlib
-          from datetime import datetime, timezone
-
-          latest_path = "data/latest/MP16607.csv"
-          index_path = "data/index.json"
-
-          def sha256(p):
-              if not os.path.exists(p): return None
-              h = hashlib.sha256()
-              with open(p, "rb") as f:
-                  for chunk in iter(lambda: f.read(1024*1024), b""):
-                      h.update(chunk)
-              return h.hexdigest()
-
-          # Calculate current feed hash
-          new_hash = sha256(latest_path)
-
-          # Load or initialize index
-          index = {"feed":"MP16607","snapshots":[]}
-          if os.path.exists(index_path):
-              with open(index_path, "r", encoding="utf-8") as f:
-                  index = json.load(f)
-
-          # Check against the most recent snapshot
-          last_hash = index["snapshots"][0]["sha256"] if index["snapshots"] else None
-
-          if new_hash == last_hash:
-              print("No change in raw feed; skipping historical snapshot backup.")
-          else:
-              ts = datetime.now(timezone.utc)
-              yyyy, mm, dd = ts.strftime("%Y"), ts.strftime("%m"), ts.strftime("%d")
-              stamp = ts.strftime("%Y%m%d_%H%M")
-              
-              # Build snapshot path
-              folder = f"data/snapshots/{yyyy}/{mm}/{dd}"
-              os.makedirs(folder, exist_ok=True)
-              gz_path = f"{folder}/MP16607_{stamp}.csv.gz"
-
-              # Compress raw feed to .gz
-              with open(latest_path, "rb") as f_in:
-                  with gzip.open(gz_path, "wb", compresslevel=6) as f_out:
-                      shutil.copyfileobj(f_in, f_out)
-
-              # Count rows for metadata
-              with gzip.open(gz_path, "rt", encoding="utf-8", errors="ignore") as f:
-                  rows = sum(1 for _ in f) - 1
-
-              # Update index object
-              entry = {
-                  "ts_utc": ts.isoformat(),
-                  "file": gz_path,
-                  "rows": max(rows, 0),
-                  "sha256": new_hash
-              }
-              index["snapshots"].insert(0, entry)
-              index["snapshots"] = index["snapshots"][:2000] # Keep last 2000 entries
-
-              # Save updated index
-              os.makedirs("data", exist_ok=True)
-              with open(index_path, "w", encoding="utf-8") as f:
-                  json.dump(index, f, indent=2)
-
-              print(f"Success: Snapshot saved to {gz_path}")
-          PY
 
       - name: Commit & push (if changes)
         run: |
           set -euo pipefail
-          # Check if any processed files (app_ready, meta, delta, or state) changed
-          if git diff --quiet; then
-            # We also check for untracked files (in case it's the first run)
-            if [ -z "$(git status --porcelain)" ]; then
-              echo "No changes detected in inventory or state. Nothing to commit."
-              exit 0
-            fi
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "inventory-bot"
+            git config user.email "inventory-bot@users.noreply.github.com"
+            git add data/
+            git commit -m "Inventory update: $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git push
+          else
+            echo "No changes detected (scripts exited early or data is identical)."
           fi
-          
-          git config user.name "inventory-bot"
-          git config user.email "inventory-bot@users.noreply.github.com"
-          
-          # Stage all relevant data directories
-          git add data/latest data/state data/snapshots data/index.json
-          
-          git commit -m "Inventory update: $(date -u +'%Y-%m-%d %H:%M') UTC"
-          git push
