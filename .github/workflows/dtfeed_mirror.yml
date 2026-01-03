@@ -2,7 +2,7 @@ name: Mirror dtfeed inventory (MP16607)
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes
+    - cron: "0 */6 * * *"   # every 6 hours (at minute 0)
   workflow_dispatch:
 
 permissions:
@@ -19,6 +19,11 @@ jobs:
           set -e
           mkdir -p data/latest
           curl -L --fail "http://dtfeed.camclarkautogroup.com/ftp/MP16607.csv" -o data/latest/MP16607.csv
+
+      - name: Build app-ready + age tracking
+        run: |
+          set -e
+          python scripts/build_app_ready.py
 
       - name: Snapshot + update index (only if changed)
         run: |
@@ -93,6 +98,6 @@ jobs:
           fi
           git config user.name "inventory-bot"
           git config user.email "inventory-bot@users.noreply.github.com"
-          git add data/latest/MP16607.csv data/snapshots data/index.json
+          git add data/latest data/state data/snapshots data/index.json
           git commit -m "Inventory snapshot update"
           git push
