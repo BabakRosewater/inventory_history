@@ -1,0 +1,11 @@
+{
+  "feed": "MP16607",
+  "snapshots": [
+    {
+      "ts_utc": "2026-01-03T22:22:40.977207+00:00",
+      "file": "data/snapshots/2026/01/03/MP16607_20260103_2222.csv.gz",
+      "rows": 112,
+      "sha256": "c373a7ad70c85ab94fc8a4793a54ca99fb9b511bde65f1960c8d05636cd0dcd9"
+    }
+  ]
+}
