@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+"""
+pull_inventory.py
+
+Downloads dtfeed MP16607.csv (tries https then http), writes:
+- data/latest/MP16607.csv            (raw latest)
+- data/snapshots/YYYY-MM-DD/*.csv.gz (timestamped snapshot)
+- data/manifest.csv                  (append-only log)
+
+If the downloaded bytes hash matches current latest, it does nothing.
+"""
+
+from __future__ import annotations
+
 import csv
 import datetime as dt
 import gzip
@@ -6,22 +19,32 @@ import hashlib
 import io
 import pathlib
 import urllib.request
-import os
+from typing import Tuple
+
 
 FEED_URLS = [
-    "http://dtfeed.camclarkautogroup.com/ftp/MP16607.csv",
     "https://dtfeed.camclarkautogroup.com/ftp/MP16607.csv",
+    "http://dtfeed.camclarkautogroup.com/ftp/MP16607.csv",
 ]
 
 LATEST_PATH = pathlib.Path("data/latest/MP16607.csv")
 SNAPSHOT_ROOT = pathlib.Path("data/snapshots")
 MANIFEST_PATH = pathlib.Path("data/manifest.csv")
 
+
 def sha256_bytes(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
-def fetch_feed() -> tuple[str, bytes]:
-    last_err = None
+
+def ensure_dirs() -> None:
+    LATEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SNAPSHOT_ROOT.mkdir(parents=True, exist_ok=True)
+    MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def fetch_feed() -> Tuple[str, bytes]:
+    last_err: Exception | None = None
+
     for url in FEED_URLS:
         try:
             req = urllib.request.Request(
@@ -31,31 +54,32 @@ def fetch_feed() -> tuple[str, bytes]:
             )
             with urllib.request.urlopen(req, timeout=60) as r:
                 data = r.read()
+
             if not data:
                 raise RuntimeError("Empty response")
+
             return url, data
         except Exception as e:
             last_err = e
+
     raise SystemExit(f"Feed download failed. Last error: {last_err}")
 
-def count_csv_rows(data: bytes) -> int:
-    # Use utf-8-sig to handle the BOM (Byte Order Mark) if present
-    text = data.decode("utf-8-sig", errors="replace")
-    reader = csv.reader(io.StringIO(text))
-    return sum(1 for _ in reader)
-
-def ensure_dirs():
-    LATEST_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SNAPSHOT_ROOT.mkdir(parents=True, exist_ok=True)
 
 def read_latest_sha() -> str | None:
     if not LATEST_PATH.exists():
         return None
     return sha256_bytes(LATEST_PATH.read_bytes())
 
-def append_manifest(row: dict):
+
+def count_csv_rows_including_header(data: bytes) -> int:
+    # utf-8-sig handles possible BOM
+    text = data.decode("utf-8-sig", errors="replace")
+    reader = csv.reader(io.StringIO(text))
+    return sum(1 for _ in reader)
+
+
+def append_manifest(row: dict) -> None:
     is_new = not MANIFEST_PATH.exists()
-    MANIFEST_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     fieldnames = [
         "timestamp_utc",
@@ -73,7 +97,8 @@ def append_manifest(row: dict):
             w.writeheader()
         w.writerow(row)
 
-def main():
+
+def main() -> None:
     ensure_dirs()
 
     url_used, data = fetch_feed()
@@ -82,13 +107,12 @@ def main():
 
     if old_sha == new_sha:
         print("No change detected in raw feed.")
-        # Optional: create a small flag file for the next script to check
-        # For now, we exit 0 so the workflow continues but build_app_ready 
-        # will simply see the same file.
         return
 
+    # Update latest
     LATEST_PATH.write_bytes(data)
 
+    # Snapshot path
     now = dt.datetime.utcnow().replace(microsecond=0)
     day_dir = SNAPSHOT_ROOT / now.strftime("%Y-%m-%d")
     day_dir.mkdir(parents=True, exist_ok=True)
@@ -100,19 +124,22 @@ def main():
     with gzip.open(snap_path, "wb", compresslevel=9) as gz:
         gz.write(data)
 
-    rows = count_csv_rows(data)
+    rows = count_csv_rows_including_header(data)
 
-    append_manifest({
-        "timestamp_utc": now.isoformat() + "Z",
-        "url_used": url_used,
-        "sha256": new_sha,
-        "bytes": str(len(data)),
-        "csv_rows_including_header": str(rows),
-        "latest_path": str(LATEST_PATH.as_posix()),
-        "snapshot_path": str(snap_path.as_posix()),
-    })
+    append_manifest(
+        {
+            "timestamp_utc": now.isoformat() + "Z",
+            "url_used": url_used,
+            "sha256": new_sha,
+            "bytes": str(len(data)),
+            "csv_rows_including_header": str(rows),
+            "latest_path": str(LATEST_PATH.as_posix()),
+            "snapshot_path": str(snap_path.as_posix()),
+        }
+    )
 
     print(f"Updated latest + wrote snapshot: {snap_path}")
+
 
 if __name__ == "__main__":
     main()
