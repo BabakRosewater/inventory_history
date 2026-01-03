@@ -2,28 +2,20 @@ name: Mirror dtfeed inventory (MP16607)
 
 on:
   schedule:
-    - cron: "5 */2 * * *"  # every 2 hours (UTC)
-  workflow_dispatch:
+    # Every 2 hours at minute 5
+    - cron: "5 */2 * * *"
+  workflow_dispatch: {}
 
 permissions:
   contents: write
 
-concurrency:
-  group: inventory-history
-  cancel-in-progress: true
-
 jobs:
   inventory_job:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Git safe directory (prevents occasional Actions git errors)
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -33,24 +25,17 @@ jobs:
       - name: Step 1: Fetch Raw Feed
         run: python scripts/pull_inventory.py
 
-      - name: Detect whether raw feed changed
-        id: detect
-        run: |
-          if git diff --quiet -- data/latest/MP16607.csv; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-          fi
-
       - name: Step 2: Build App-Ready Data
-        if: steps.detect.outputs.changed == 'true'
         run: python scripts/build_app_ready.py
 
-      - name: Step 3: Commit & Push
-        if: steps.detect.outputs.changed == 'true'
+      - name: Step 3: Commit & Push (if changed)
         run: |
-          git config user.name "inventory-bot"
-          git config user.email "inventory-bot@users.noreply.github.com"
-          git add data/
-          git commit -m "Inventory Update $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          git push
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git config user.name "inventory-bot"
+            git config user.email "inventory-bot@users.noreply.github.com"
+            git add data/
+            git commit -m "Inventory Update $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            git push
+          else
+            echo "No changes detected."
+          fi
