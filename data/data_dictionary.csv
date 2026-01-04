@@ -1,0 +1,36 @@
+Field,Type,Example,Notes
+vehicle_id,String,3KMJACDE1SE015414,Unique internal/provider identifier. Often correlates with VIN but is not guaranteed to match.
+title,String,2025 Hyundai Tucson SE,"Listing title, usually combining Year, Make, Model, and Trim."
+description,String,2025 Hyundai Tucson SEWhite Pearl AWD...,"Full marketing description, vehicle features, and dealership notes."
+url,String,https://www.clarkhyundai.com/...,Direct link to the vehicle details page on the dealership website.
+make,String,Hyundai,The vehicle manufacturer.
+model,String,Tucson,The specific vehicle model name.
+year,Integer,2025,The manufacturing model year.
+mileage.value,Integer,10,The numeric odometer reading.
+mileage.unit,String,MI,The unit of measurement for distance (usually Miles).
+image[0].url,String,https://assets.cai-media...,URL for the primary vehicle photograph.
+image[0].tag[0],String,exterior,Label associated with the primary image.
+transmission,String,8-Speed Automatic,Description of the gearbox type.
+fuel_type,String,Gasoline,The energy source used by the engine.
+body_style,String,SUV,The vehicle's body classification.
+drivetrain,String,AWD,"The drivetrain configuration (AWD, FWD, RWD)."
+vin,String,3KMJACDE1SE015414,The unique 17-character Vehicle Identification Number.
+condition,String,Used,The general state of the vehicle (New or Used).
+price,String,32570 USD,"Original/list price. The ""compare-to"" number (often MSRP for new, list for used)."
+address,String,"Hwy 93 South, Kalispell, MT",The full physical address of the dealership.
+exterior_color,String,White Pearl,The manufacturer's name for the vehicle's paint color.
+sale_price,String,28492 USD,Current asking price after discounts. May include/exclude incentives based on rules.
+availability,String,in stock,The current sales availability status.
+state_of_vehicle,String,USED,"Specific sales category (NEW, USED, or CPO)."
+latitude,Float,48.16,Geographic North-South coordinate of the dealership location.
+longitude,Float,-114.31,Geographic East-West coordinate of the dealership location.
+Trim,String,SE,The specific feature package or trim level.
+fb_page_id,String,1.21709E+14,Unique ID for the dealership's Facebook page.
+address.addr1,String,Hwy 93 South & Lower Valley Rd,Street address portion of the location.
+address.city,String,Kalispell,City of the vehicle's location.
+address.country,String,US,Country of the vehicle's location.
+Photo Url List,String,https://assets.cai-media...,A comma-separated list of all available image URLs.
+Dealer Name,String,Clark Hyundai,The name of the selling dealership.
+Dealer Id,String,MP16607,Unique internal identifier for the dealership.
+Stock #,String,H7114,The internal stock number assigned by the dealer for inventory tracking.
+Age,Integer,4,Days since the listing record was created or last reset by the provider/feed.
