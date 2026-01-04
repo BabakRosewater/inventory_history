@@ -1,16 +1,15 @@
-name: Mirror dtfeed inventory (MP16607)
+name: "Mirror dtfeed inventory (MP16607)"
 
 on:
   schedule:
-    # Every 2 hours at minute 5
     - cron: "5 */2 * * *"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 permissions:
   contents: write
 
 concurrency:
-  group: mirror-dtfeed-inventory
+  group: "mirror-dtfeed-inventory"
   cancel-in-progress: true
 
 jobs:
@@ -19,22 +18,25 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout
+      - name: "Checkout"
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Setup Python
+      - name: "Setup Python"
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Step 1: Fetch Raw Feed
+      - name: "Step 1 - Fetch Raw Feed"
         run: python scripts/pull_inventory.py
 
-      - name: Step 2: Build App-Ready Data
+      - name: "Step 2 - Build App-Ready Data"
         run: python scripts/build_app_ready.py
 
-      - name: Step 3: Commit & Push (if changed)
+      - name: "Step 3 - Commit & Push (if changed)"
         run: |
+          set -e
           if [[ -n "$(git status --porcelain)" ]]; then
             git config user.name "inventory-bot"
             git config user.email "inventory-bot@users.noreply.github.com"
