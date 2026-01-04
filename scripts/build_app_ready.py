@@ -2,10 +2,13 @@
 """
 build_app_ready.py
 
-Turns the raw dtfeed CSV into app-friendly outputs while preserving ALL original columns.
+Builds an app-friendly CSV while preserving ALL original feed columns.
+
+Input:
+- data/latest/MP16607.csv
 
 Outputs:
-- data/latest/app_ready.csv      (computed columns + ALL original feed columns)
+- data/latest/app_ready.csv        (computed columns + ALL raw headers)
 - data/latest/meta.json
 - data/latest/delta.json
 - data/state/first_seen.json
@@ -28,18 +31,18 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
 
-# Computed columns we prepend to the output (then we append ALL raw headers)
-COMPUTED_FIELDS = [
-    "key",
-    "stock",
-    "trim",
-    "state_of_vehicle_norm",
-    "age_days",  # feed Age (parsed int)
-    "age_days_since_first_seen",  # tracker-based
+# These columns are added FIRST, then the 35 raw headers follow in their original order
+COMPUTED_FIELDS: List[str] = [
+    "key",                      # vin (preferred) else vehicle_id, uppercased
+    "stock",                    # normalized stock number (from "Stock #", fallback to key)
+    "trim",                     # normalized trim (from "Trim")
+    "state_of_vehicle_norm",    # NEW / USED (CPO -> USED)
+    "age_days",                 # feed Age (int) fallback to age_days_since_first_seen
+    "age_days_since_first_seen",
     "price_usd",
     "sale_price_usd",
     "discount_usd",
-    "image_url",
+    "image_url",                # primary photo chosen for the app
     "first_seen_utc",
 ]
 
@@ -61,7 +64,7 @@ def to_float(x: Any) -> Optional[float]:
     s = str(x).strip()
     if not s:
         return None
-    # Handles "32570 USD", "$32,570", etc.
+    # Handles "32570 USD", "$32,570", "32570", etc.
     s = re.sub(r"[^\d.\-]", "", s)
     try:
         return float(s)
@@ -133,9 +136,10 @@ def main() -> None:
     if not os.path.exists(INP):
         raise SystemExit(f"Input not found: {INP}")
 
-    first_seen: Dict[str, str] = load_json(STATE, {})  # key -> iso ts
+    # key -> ISO timestamp
+    first_seen: Dict[str, str] = load_json(STATE, {})
 
-    # previous OUT for delta
+    # Read prior OUT for delta comparisons (key + sale_price_usd)
     prev: Dict[str, Dict[str, Any]] = {}
     if os.path.exists(OUT):
         with open(OUT, "r", encoding="utf-8-sig", newline="") as f:
@@ -147,23 +151,29 @@ def main() -> None:
     rows_out: List[Dict[str, Any]] = []
     now_keys: Set[str] = set()
 
+    # Read raw feed
     with open(INP, "r", encoding="utf-8-sig", errors="ignore", newline="") as f:
         rdr = csv.DictReader(f)
         headers: List[str] = rdr.fieldnames or []
 
-        # Ensure required identity exists
+        if not headers:
+            raise SystemExit("Input CSV has no headers.")
+
+        # Validate keyability
         lower_headers = [h.lower() for h in headers]
         if "vin" not in lower_headers and "vehicle_id" not in lower_headers:
             raise SystemExit("No vin or vehicle_id column found; can’t key rows.")
 
-        out_fields = COMPUTED_FIELDS + headers  # computed first, then ALL raw headers
+        # This is the exact output column order:
+        # computed columns first, then raw headers in their original order
+        out_fields: List[str] = COMPUTED_FIELDS + headers
 
         for row in rdr:
-            # Preserve ALL raw columns exactly (as strings)
-            raw_map = {h: (row.get(h) if row.get(h) is not None else "") for h in headers}
+            # Preserve ALL raw columns exactly by header name
+            raw_map: Dict[str, Any] = {h: (row.get(h) if row.get(h) is not None else "") for h in headers}
 
-            vin_raw = pick(row, "vin").strip()
-            vid_raw = pick(row, "vehicle_id").strip()
+            vin_raw = pick(row, "vin").strip().upper()
+            vid_raw = pick(row, "vehicle_id").strip().upper()
 
             key = (vin_raw or vid_raw).strip()
             if not key:
@@ -177,12 +187,13 @@ def main() -> None:
             fs_date = parse_first_seen_date(first_seen[key], today)
             age_days_since_first_seen = max(0, (today - fs_date).days)
 
-            # Feed age (from "Age" column)
+            # Feed age (preferred for "age_days")
             feed_age = to_int(pick(row, "Age"))
             age_days = feed_age if feed_age is not None else age_days_since_first_seen
 
             price_usd = to_float(pick(row, "price"))
             sale_usd = to_float(pick(row, "sale_price"))
+
             discount_usd: Optional[float] = None
             if price_usd is not None and sale_usd is not None and price_usd > sale_usd:
                 discount_usd = round(price_usd - sale_usd, 2)
@@ -190,19 +201,19 @@ def main() -> None:
             state_raw = pick(row, "state_of_vehicle", "condition", "availability")
             state_norm = norm_state(state_raw)
 
-            # Stock + Trim normalized (your app fields)
             stock = pick(row, "Stock #").strip()
             if not stock:
-                stock = vid_raw or vin_raw or key
+                stock = key
 
-            trim = pick(row, "Trim").strip()
+            trim = pick(row, "Trim", "trim").strip()
 
-            # Primary image (prefer image[0].url, else first from Photo Url List)
             image_url = pick(row, "image[0].url").strip()
             if not image_url:
                 image_url = first_photo_from_list(pick(row, "Photo Url List"))
 
+            # Build full output row
             out_row: Dict[str, Any] = {}
+
             # computed
             out_row["key"] = key
             out_row["stock"] = stock
@@ -221,25 +232,35 @@ def main() -> None:
 
             rows_out.append(out_row)
 
-    # Stable ordering (don’t mutate raw state; sort by computed norm + model + key)
+    # Stable sort for consistent output
     def sort_key(r: Dict[str, Any]):
-        return (str(r.get("state_of_vehicle_norm", "")), str(r.get("model", "")), str(r.get("key", "")))
+        return (
+            str(r.get("state_of_vehicle_norm", "")),
+            str(r.get("model", "")),
+            str(r.get("key", "")),
+        )
 
     rows_out.sort(key=sort_key)
 
+    # Ensure output folder exists
     out_dir = os.path.dirname(OUT)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
 
-    # Write app_ready.csv
+    # Recompute out_fields deterministically even if there are 0 rows
+    # (we can re-open INP header to ensure we always write the same header list)
+    with open(INP, "r", encoding="utf-8-sig", errors="ignore", newline="") as f:
+        hdrs = csv.DictReader(f).fieldnames or []
+    out_fields = COMPUTED_FIELDS + hdrs
+
+    # Write app_ready.csv with deterministic column order
     with open(OUT, "w", encoding="utf-8", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=(COMPUTED_FIELDS + (rows_out[0].keys() - set(COMPUTED_FIELDS)) if rows_out else COMPUTED_FIELDS))
-        # The above ensures computed fields lead, then everything else present.
+        w = csv.DictWriter(f, fieldnames=out_fields)
         w.writeheader()
         for r in rows_out:
-            w.writerow(r)
+            w.writerow({k: r.get(k, "") for k in out_fields})
 
-    # Delta based on key + sale_price_usd
+    # Delta based on key set difference + sale price changes
     added = sorted(now_keys - set(prev.keys()))
     removed = sorted(set(prev.keys()) - now_keys)
 
@@ -270,6 +291,8 @@ def main() -> None:
             "source": INP,
             "out": OUT,
             "computed_fields": COMPUTED_FIELDS,
+            "raw_headers": hdrs,
+            "out_fields": out_fields,
         },
     )
 
