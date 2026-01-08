@@ -1,10 +1,19 @@
 {
-  "ts_utc": "2026-01-08T04:24:27.981965+00:00",
-  "added": [],
+  "ts_utc": "2026-01-08T06:15:12.127651+00:00",
+  "added": [
+    "5NMSHDAG2AH358495"
+  ],
   "removed": [],
-  "price_changed": [],
+  "price_changed": [
+    "1C6SRFKT6RN122278",
+    "1GT49WEY5RF185102",
+    "5NPET4AC2AH613836",
+    "KM8R4DGE5PU520830",
+    "KMHL64JA2RA411932",
+    "KNDPVCDF7R7222720"
+  ],
   "counts": {
-    "now": 109,
+    "now": 110,
     "prev": 109
   }
 }
