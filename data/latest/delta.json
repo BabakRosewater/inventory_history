@@ -1,10 +1,19 @@
 {
-  "ts_utc": "2026-01-10T20:11:51.922866+00:00",
-  "added": [],
-  "removed": [],
+  "ts_utc": "2026-01-10T22:11:38.844496+00:00",
+  "added": [
+    "KMHL24JA3TA550664"
+  ],
+  "removed": [
+    "1G4ZS5SS7HU182874",
+    "JF2SKAEC7NH403026",
+    "KM8HACAB6TU382433",
+    "KMHLL4DG6SU093231",
+    "KMHM54AC4PA026569",
+    "KMHRC8A35TU439323"
+  ],
   "price_changed": [],
   "counts": {
-    "now": 110,
+    "now": 105,
     "prev": 110
   }
 }
