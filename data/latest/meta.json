@@ -1,5 +1,5 @@
 {
-  "ts_utc": "2026-01-12T08:15:23.603810+00:00",
+  "ts_utc": "2026-01-12T10:12:41.417306+00:00",
   "rows": 106,
   "source": "data/latest/MP16607.csv",
   "out": "data/latest/app_ready.csv",
