@@ -1,6 +1,6 @@
 {
-  "ts_utc": "2026-01-18T20:11:40.661549+00:00",
-  "rows": 114,
+  "ts_utc": "2026-01-18T22:11:24.239933+00:00",
+  "rows": 113,
   "source": "data/latest/MP16607.csv",
   "out": "data/latest/app_ready.csv",
   "computed_fields": [
