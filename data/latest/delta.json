@@ -1,15 +1,10 @@
 {
-  "ts_utc": "2026-01-18T08:12:02.689338+00:00",
-  "added": [
-    "2T3BFREV4HW569151"
-  ],
-  "removed": [
-    "1FMJK2AT8LEA94733",
-    "5FNYF6H65NB083253"
-  ],
+  "ts_utc": "2026-01-18T10:11:33.110725+00:00",
+  "added": [],
+  "removed": [],
   "price_changed": [],
   "counts": {
     "now": 114,
-    "prev": 115
+    "prev": 114
   }
 }
