@@ -1,12 +1,10 @@
 {
-  "ts_utc": "2026-01-18T22:11:24.239933+00:00",
+  "ts_utc": "2026-01-19T02:54:52.043937+00:00",
   "added": [],
-  "removed": [
-    "1GKKNXLS9HZ237954"
-  ],
+  "removed": [],
   "price_changed": [],
   "counts": {
     "now": 113,
-    "prev": 114
+    "prev": 113
   }
 }
