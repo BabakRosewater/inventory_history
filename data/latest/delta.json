@@ -1,18 +1,10 @@
 {
-  "ts_utc": "2026-01-21T00:41:31.847942+00:00",
-  "added": [
-    "KM8JBDD13TU438125",
-    "KM8RMESA0TU054583",
-    "KM8RNES24TU080187"
-  ],
-  "removed": [
-    "JN8AF5MV9FT553568"
-  ],
-  "price_changed": [
-    "5FPYK3F6XKB035926"
-  ],
+  "ts_utc": "2026-01-21T02:49:29.729040+00:00",
+  "added": [],
+  "removed": [],
+  "price_changed": [],
   "counts": {
     "now": 116,
-    "prev": 114
+    "prev": 116
   }
 }
