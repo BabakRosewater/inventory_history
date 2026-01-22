@@ -1,10 +1,13 @@
 {
-  "ts_utc": "2026-01-22T14:17:44.491672+00:00",
+  "ts_utc": "2026-01-22T16:15:38.872452+00:00",
   "added": [],
-  "removed": [],
+  "removed": [
+    "5NMP2DGL3RH030719",
+    "KM8RMESA0TU054583"
+  ],
   "price_changed": [],
   "counts": {
-    "now": 120,
+    "now": 118,
     "prev": 120
   }
 }
