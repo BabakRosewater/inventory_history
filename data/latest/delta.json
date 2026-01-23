@@ -1,10 +1,29 @@
 {
-  "ts_utc": "2026-01-23T16:13:44.676732+00:00",
-  "added": [],
-  "removed": [],
-  "price_changed": [],
+  "ts_utc": "2026-01-23T18:14:54.217741+00:00",
+  "added": [
+    "5NMJECDE8TH675774",
+    "5NTJADDE7TH169892",
+    "5NTJDDDF7TH169214",
+    "5NTJEDDF0TH168838",
+    "KM8RKESA4TU059548",
+    "KM8RNES20TU089730",
+    "KM8RNES24TU088192",
+    "KM8RNES28TU090561"
+  ],
+  "removed": [
+    "3CZRZ2H71PM728017",
+    "5FPYK3F6XKB035926"
+  ],
+  "price_changed": [
+    "5XYRKDLF3NG146273",
+    "JF2SKAJC0RH515226",
+    "KM8HACA31RU089668",
+    "KM8R7DGE6PU519502",
+    "KMHTC6AD9GU248206",
+    "KNDC3DLC1N5053267"
+  ],
   "counts": {
-    "now": 138,
+    "now": 144,
     "prev": 138
   }
 }
